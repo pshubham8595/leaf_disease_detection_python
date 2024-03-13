@@ -1,0 +1,64 @@
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+
+<!--</head>-->
+
+<!--<body>-->
+<!--<br><h2>Plant Disease Classification Using Deep Learning</h2><br>-->
+
+<!--    <form id="upload-file" method="post" enctype="multipart/form-data">-->
+<!--         <input type="file" name="file" class="btn btn-success" id="imageUpload" accept=".png, .jpg, .jpeg">-->
+<!--    </form>-->
+
+
+<!--    <div class="image-section" style="display:none;">-->
+<!--         <img id="imagePreview"  class="img-responsive" src="#" style="width:300px;height:300px;"/><br><br>-->
+<!--         <div>-->
+<!--            <button type="button" class="btn btn-info btn-lg " id="btn-predict">Predict!</button>-->
+<!--         </div>-->
+<!--    </div>-->
+
+
+
+<!--    <div class="loader" style="display:none;"></div>-->
+
+<!--    <h3 id="result">-->
+<!--        <span> </span>-->
+<!--    </h3>-->
+
+
+<!--<br><br>-->
+
+<!--</body>-->
+<!--</html>-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Classification</title>
+    <style>
+        /* Inline CSS for styling */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Plant Leaf disease prediction</h1>
+    <form action="/" method="post" enctype="multipart/form-data">
+        <input type="file" name="image" accept="image/jpeg">
+        <input type="submit" value="Predict">
+    </form>
+    {% if prediction %}
+    <h2>Prediction Result:</h2>
+    <p>{{ prediction }}</p>
+    <img src="{{ image }}" alt="Selected Image." width="300">
+    {% endif %}
+</body>
+</html>

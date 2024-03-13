@@ -5,10 +5,23 @@ import numpy
 import numpy as np
 import tensorflow as tf
 from PIL import Image
+from flask import Flask, request, render_template
+from werkzeug.utils import secure_filename
+
 from tensorflow.keras import models, layers
 import matplotlib.pyplot as plt
 import os
 
+app = Flask(__name__)
+
+# Sample data
+details = {
+    'name': 'John Doe',
+    'age': 30,
+    'email': 'john.doe@example.com'
+}
+
+print("--------------------------")
 IMAGE_SIZE = 256
 BATCH_SIZE = 32
 EPOCHS = 50
@@ -26,6 +39,7 @@ dataset = tf.keras.preprocessing.image_dataset_from_directory(
 print(dataset)
 class_names = dataset.class_names
 print(class_names)
+print("--------------------------")
 
 
 def get_data_set_partition(ds, train_split=0.1, test_split=0.1, val_split=0.8, shuffle=True, shuffle_size=10000):
@@ -44,12 +58,74 @@ def get_data_set_partition(ds, train_split=0.1, test_split=0.1, val_split=0.8, s
         return train_dataset, val_dataset, test_dataset
 
 
-train_ds, val_ds, test_ds = get_data_set_partition(dataset)
+def preprocess_image(image_path):
+    image = Image.open(image_path)
+    image = image.resize((256, 256))
+    image_array = tf.keras.preprocessing.image.img_to_array(image)
+    image_array = tf.expand_dims(image_array, 0)
+    return image_array
 
-train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=tf.data.AUTOTUNE)
-val_ds = val_ds.cache().shuffle(1000).prefetch(buffer_size=tf.data.AUTOTUNE)
-test_ds = test_ds.cache().shuffle(1000).prefetch(buffer_size=tf.data.AUTOTUNE)
 
+def predict_leaf_disease(prediction_model, img):
+    prediction_made = prediction_model.predict(img)
+    predicted_class = class_names[np.argmax(prediction_made[0])]
+    return predicted_class
+
+
+def predict_image(image_path):
+    train_ds, val_ds, test_ds = get_data_set_partition(dataset)
+    train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=tf.data.AUTOTUNE)
+    val_ds = val_ds.cache().shuffle(1000).prefetch(buffer_size=tf.data.AUTOTUNE)
+    test_ds = test_ds.cache().shuffle(1000).prefetch(buffer_size=tf.data.AUTOTUNE)
+    model = tf.keras.models.load_model('high_accuracy_model.h5')
+    # test_image_path = 'dataset_leafs/Potato___Late_blight/0b092cda-db8c-489d-8c46-23ac3835310d___RS_LB 4480.JPG'
+
+    image_path = preprocess_image(image_path)
+
+    predicted_class_name = predict_leaf_disease(model, image_path)
+    print(predicted_class_name)
+
+    return predicted_class_name
+
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        if 'image' not in request.files:
+            return render_template('index.html', error="No file part")
+
+        file = request.files['image']
+
+        if file.filename == '':
+            return render_template('index.html', error="No selected file")
+
+        if file:
+            # Create the uploads directory if it doesn't exist
+            if not os.path.exists('cache'):
+                os.makedirs('cache')
+
+            # Save the uploaded image
+
+            image_path = os.path.join('cache', file.filename)
+            full_image_path = os.path.abspath(image_path)
+            file.save(image_path)
+            print("Selected Image Path: ", full_image_path)
+
+            # Perform prediction
+            prediction = predict_image(image_path)
+
+            # Remove the uploaded image
+            os.remove(image_path)
+
+            # Pass prediction result and image path to HTML
+            return render_template('index.html', prediction=prediction, image=full_image_path)
+
+    # Render the HTML page
+    return render_template('index.html')
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
 
 # --- MODEL PREPARATION ----
 #
@@ -103,23 +179,14 @@ test_ds = test_ds.cache().shuffle(1000).prefetch(buffer_size=tf.data.AUTOTUNE)
 # model.save("high_accuracy_model.h5")
 
 # ---------------------------------------------------
-def pre_process_image(image_path, target_size=(IMAGE_SIZE, IMAGE_SIZE)):
-    img = keras_preprocessing.image.load_img(image_path, target_size)
-    x = keras_preprocessing.image.img_to_array(img)
-    x = x.astype('float32') / 255
-    x = np.expand_dims(x, axis=0)
-    return x
-
-
-model = tf.keras.models.load_model('high_accuracy_model.h5')
 # print(model.summary())
 # scores = model.evaluate(test_ds)
 # print(scores)
-print("--------------------------")
 
 # Perfect Healthy : test_image_path = 'dataset_leafs/Potato___healthy/0b3e5032-8ae8-49ac-8157-a1cac3df01dd___RS_HL 1817.JPG'
 # Perfect Healthy : test_image_path = 'dataset_leafs/Potato___Early_blight/1af20ff8-980d-4912-b337-804b09667de3___RS_Early.B 7392.JPG'
-test_image_path = 'dataset_leafs/Potato___Late_blight/0b092cda-db8c-489d-8c46-23ac3835310d___RS_LB 4480.JPG'
+
+
 #
 # for images_batch, labels_batch in test_ds.take(1):
 #     first_image = images_batch[0].numpy().astype('uint8')
@@ -131,25 +198,8 @@ test_image_path = 'dataset_leafs/Potato___Late_blight/0b092cda-db8c-489d-8c46-23
 #     plt.imshow(first_image)
 #     plt.show()
 
-def preprocess_image(image_path):
-    image = Image.open(image_path)
-    image = image.resize((256, 256))
-    image_array = tf.keras.preprocessing.image.img_to_array(image)
-    image_array = tf.expand_dims(image_array, 0)
-    return image_array
-
-
-def predict_leaf_disease(prediction_model, img):
-    prediction_made = prediction_model.predict(img)
-    predicted_class = class_names[np.argmax(prediction_made[0])]
-    return predicted_class
-
-
 # Preprocess the test image
-test_image = preprocess_image(test_image_path)
 
-predicted_class_name = predict_leaf_disease(model, test_image)
-print(predicted_class_name)
 
 # img_pre_processed = pre_process_image(test_image_path)
 # predictions = model.predict(img_pre_processed)
